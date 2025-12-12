@@ -20,7 +20,7 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -42,6 +42,12 @@
             justify-content: space-around;
             flex-wrap: wrap;
             gap: 20px;
+        }
+
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
         .money-display {
@@ -82,7 +88,9 @@
             padding: 20px;
             backdrop-filter: blur(10px);
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-            margin-bottom: 20px;
+            flex: 0 0 300px;
+            display: flex;
+            flex-direction: column;
         }
 
         .game-controls-area {
@@ -148,6 +156,7 @@
             background: rgba(255, 255, 255, 0.1);
             border-radius: 15px;
             padding: 25px;
+            flex: 1;
             backdrop-filter: blur(10px);
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             margin-bottom: 20px;
@@ -285,12 +294,13 @@
         }
 
         .result {
-            font-size: 1.5em;
+            font-size: 1.1em;
             font-weight: bold;
             text-align: center;
-            margin: 20px 0;
-            padding: 15px;
+            margin: 15px 0;
+            padding: 12px;
             border-radius: 10px;
+            min-height: 50px;
         }
 
         .result.win {
@@ -345,36 +355,40 @@
             </div>
         </div>
 
-        <div class="game-area">
-            <!-- Dealer Section -->
-            <div class="hand-section">
-                <div class="hand-title">莊家 (Dealer)</div>
-                <div class="cards" id="dealerCards"></div>
-                <div class="score" id="dealerScore">點數: -</div>
+        <!-- Main Layout: Game Area on Left, Betting on Right -->
+        <div class="main-layout">
+            <!-- Game Area (Left Side) -->
+            <div class="game-area">
+                <!-- Dealer Section -->
+                <div class="hand-section">
+                    <div class="hand-title">莊家 (Dealer)</div>
+                    <div class="cards" id="dealerCards"></div>
+                    <div class="score" id="dealerScore">點數: -</div>
+                </div>
+
+                <!-- Player Section -->
+                <div class="hand-section">
+                    <div class="hand-title">玩家 (Player)</div>
+                    <div class="cards" id="playerCards"></div>
+                    <div class="score" id="playerScore">點數: -</div>
+                </div>
+
+                <!-- Result Display (Compact) -->
+                <div id="result"></div>
             </div>
 
-            <!-- Player Section -->
-            <div class="hand-section">
-                <div class="hand-title">玩家 (Player)</div>
-                <div class="cards" id="playerCards"></div>
-                <div class="score" id="playerScore">點數: -</div>
+            <!-- Betting Section (Right Side) -->
+            <div id="bettingSection" class="betting-section-persistent">
+                <div class="betting-title">下注金額</div>
+                <div class="betting-buttons">
+                    <button class="bet-btn" data-amount="50">50 元</button>
+                    <button class="bet-btn" data-amount="100">100 元</button>
+                    <button class="bet-btn" data-amount="500">500 元</button>
+                    <button class="bet-btn" data-amount="1000">1000 元</button>
+                    <button class="bet-btn" data-amount="5000">5000 元</button>
+                </div>
+                <div id="currentBet" class="current-bet"></div>
             </div>
-
-            <!-- Result Display -->
-            <div id="result"></div>
-        </div>
-
-        <!-- Betting Section (Always Visible) -->
-        <div id="bettingSection" class="betting-section-persistent">
-            <div class="betting-title">下注金額</div>
-            <div class="betting-buttons">
-                <button class="bet-btn" data-amount="50">50 元</button>
-                <button class="bet-btn" data-amount="100">100 元</button>
-                <button class="bet-btn" data-amount="500">500 元</button>
-                <button class="bet-btn" data-amount="1000">1000 元</button>
-                <button class="bet-btn" data-amount="5000">5000 元</button>
-            </div>
-            <div id="currentBet" class="current-bet"></div>
         </div>
 
         <!-- Game Controls -->
@@ -558,12 +572,11 @@
             deck = createDeck();
             shuffle(deck);
             
-            // Deal initial cards - dealer gets only 1 card (hole card)
+            // Deal initial cards - both get 1 card each (both hidden)
             playerHand.push(drawCard());
             dealerHand.push(drawCard());
-            playerHand.push(drawCard());
 
-            log("發初始牌：玩家 2 張、莊家 1 張（暗牌）");
+            log("發初始牌：玩家 1 張、莊家 1 張（皆為暗牌）");
 
             phase = "PLAYER_TURN";
             render();

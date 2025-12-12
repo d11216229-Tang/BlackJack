@@ -558,18 +558,29 @@
             deck = createDeck();
             shuffle(deck);
             
-            // Deal initial cards
+            // Deal initial cards - dealer gets only 1 card (hole card)
             playerHand.push(drawCard());
             dealerHand.push(drawCard());
             playerHand.push(drawCard());
-            dealerHand.push(drawCard());
 
-            log("發初始牌：玩家 2 張、莊家 2 張（1 明 1 暗）");
+            log("發初始牌：玩家 2 張、莊家 1 張（暗牌）");
 
             phase = "PLAYER_TURN";
             render();
 
-            // No immediate perfect 10.5 check - player can still choose to hit or stand
+            // Check if player already busted or has 10.5
+            const playerScore = handScore(playerHand);
+            if (playerScore.isBust) {
+                log(`玩家初始手牌爆牌！點數：${playerScore.best}`);
+                phase = "SETTLED";
+                render();
+                settle();
+            } else if (playerScore.best === 10.5) {
+                log("玩家達到 10.5 點，自動停牌");
+                phase = "DEALER_TURN";
+                render();
+                dealerPlay();
+            }
         }
 
         // Player hits
@@ -583,11 +594,31 @@
             render();
 
             const score = handScore(playerHand);
+            
+            // Check for bust
             if (score.isBust) {
                 log(`玩家爆牌！點數：${score.best}`);
                 phase = "SETTLED";
                 render();
                 settle();
+                return;
+            }
+            
+            // Check for five-card charlie (5 cards without busting)
+            if (playerHand.length === 5) {
+                log(`五小！玩家拿到 5 張牌且未爆牌，自動獲勝！`);
+                phase = "SETTLED";
+                render();
+                settleFiveCardCharlie();
+                return;
+            }
+            
+            // Check if player reached 10.5, auto-stand
+            if (score.best === 10.5) {
+                log(`玩家達到 10.5 點，自動停牌`);
+                phase = "DEALER_TURN";
+                render();
+                dealerPlay();
             }
         }
 
@@ -645,11 +676,11 @@
 
         // Dealer plays according to rules
         function dealerPlay() {
-            log("莊家回合開始，揭露暗牌");
+            log("莊家回合開始");
             render();
 
             const dealerScore = handScore(dealerHand);
-            log(`莊家點數：${dealerScore.best}`);
+            log(`莊家初始點數：${dealerScore.best}`);
 
             // Dealer draws until >= 8 (十點半 rule - dealer more conservative)
             while (true) {
@@ -735,6 +766,28 @@
             updateButtons(); // Update button states after money changes
         }
 
+        // Settle for five-card charlie (automatic win)
+        function settleFiveCardCharlie() {
+            const outcome = "WIN";
+            const reason = "五小（5 張牌未爆牌）";
+            const payout = currentBet * 2; // Win pays 1:1
+            
+            // Update money
+            money += payout;
+            
+            // Update statistics
+            totalGames++;
+            wins++;
+            
+            // Log result
+            const moneyChange = payout - currentBet;
+            log(`結算：${outcome} - ${reason} (獲得 ${payout} 元，淨賺 ${moneyChange} 元)`);
+            
+            displayResult(outcome, reason, moneyChange);
+            updateStats();
+            updateButtons(); // Update button states after money changes
+        }
+
         // Display the result
         function displayResult(outcome, reason, moneyChange) {
             resultEl.className = "result " + outcome.toLowerCase();
@@ -801,13 +854,13 @@
         }
 
         // Render a hand
-        function renderHand(hand, container, hideHoleCard) {
+        function renderHand(hand, container, hideAllCards) {
             container.innerHTML = "";
             hand.forEach((card, index) => {
                 const cardEl = document.createElement("div");
                 cardEl.className = "card";
                 
-                if (hideHoleCard && index === dealerHoleCardIndex) {
+                if (hideAllCards) {
                     cardEl.className += " hidden";
                     cardEl.textContent = "?";
                 } else {
@@ -833,14 +886,8 @@
             // Dealer score
             if (dealerHand.length > 0) {
                 if (phase === "PLAYER_TURN") {
-                    // Only show visible card score
-                    const visibleCards = dealerHand.filter((_, index) => index !== dealerHoleCardIndex);
-                    if (visibleCards.length > 0) {
-                        const visibleScore = handScore(visibleCards);
-                        dealerScoreEl.textContent = `點數: ${visibleScore.best}+?`;
-                    } else {
-                        dealerScoreEl.textContent = "點數: ?";
-                    }
+                    // During player turn, dealer cards are all hidden
+                    dealerScoreEl.textContent = "點數: ?";
                 } else {
                     const score = handScore(dealerHand);
                     dealerScoreEl.textContent = `點數: ${score.best}${score.isBust ? " - 爆牌！" : ""}`;

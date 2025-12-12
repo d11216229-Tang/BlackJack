@@ -26,9 +26,104 @@
 
         h1 {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-size: 2.5em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stats-area {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .money-display {
+            text-align: center;
+        }
+
+        .stats-display {
+            display: flex;
+            gap: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .betting-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .betting-title {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .betting-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .bet-btn {
+            background: #9c27b0;
+            color: white;
+            padding: 10px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .bet-btn:hover:not(:disabled) {
+            background: #7b1fa2;
+            transform: translateY(-2px);
+        }
+
+        .bet-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .bet-btn.selected {
+            background: #4caf50;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+
+        .current-bet {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4caf50;
+            min-height: 30px;
         }
 
         .game-area {
@@ -132,8 +227,18 @@
             color: white;
         }
 
+        #doubleBtn {
+            background: #ff5722;
+            color: white;
+        }
+
         #standBtn {
             background: #ff9800;
+            color: white;
+        }
+
+        .reset-btn {
+            background: #f44336;
             color: white;
         }
 
@@ -204,7 +309,38 @@
     <div class="container">
         <h1>21點（簡化版）</h1>
         
+        <!-- Money and Statistics Section -->
+        <div class="stats-area">
+            <div class="money-display">
+                <div class="stat-label">資金</div>
+                <div id="moneyAmount" class="stat-value">500 元</div>
+            </div>
+            <div class="stats-display">
+                <div class="stat-item">
+                    <div class="stat-label">勝率</div>
+                    <div id="winRate" class="stat-value">0%</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">勝場</div>
+                    <div id="winCount" class="stat-value">0 / 0</div>
+                </div>
+            </div>
+        </div>
+
         <div class="game-area">
+            <!-- Betting Section -->
+            <div id="bettingSection" class="betting-section">
+                <div class="betting-title">選擇下注金額</div>
+                <div class="betting-buttons">
+                    <button class="bet-btn" data-amount="50">50 元</button>
+                    <button class="bet-btn" data-amount="100">100 元</button>
+                    <button class="bet-btn" data-amount="500">500 元</button>
+                    <button class="bet-btn" data-amount="1000">1000 元</button>
+                    <button class="bet-btn" data-amount="5000">5000 元</button>
+                </div>
+                <div id="currentBet" class="current-bet"></div>
+            </div>
+
             <!-- Dealer Section -->
             <div class="hand-section">
                 <div class="hand-title">莊家 (Dealer)</div>
@@ -224,9 +360,11 @@
 
             <!-- Controls -->
             <div class="controls">
-                <button id="newRoundBtn">New Round</button>
-                <button id="hitBtn" disabled>Hit</button>
-                <button id="standBtn" disabled>Stand</button>
+                <button id="newRoundBtn">新牌局</button>
+                <button id="hitBtn" disabled>要牌</button>
+                <button id="doubleBtn" disabled>加倍</button>
+                <button id="standBtn" disabled>停牌</button>
+                <button id="resetBtn" class="reset-btn">重置</button>
             </div>
         </div>
 
@@ -242,8 +380,17 @@
         let deck = [];
         let playerHand = [];
         let dealerHand = [];
-        let phase = "INIT"; // "INIT" | "PLAYER_TURN" | "DEALER_TURN" | "SETTLED"
+        let phase = "INIT"; // "INIT" | "BETTING" | "PLAYER_TURN" | "DEALER_TURN" | "SETTLED"
         let dealerHoleCardIndex = 1; // Index of the hole card
+        
+        // Money and betting
+        let money = 500;
+        let currentBet = 0;
+        let isDoubleDown = false;
+        
+        // Statistics
+        let totalGames = 0;
+        let wins = 0;
 
         // Card suits and ranks
         const suits = ["♠", "♥", "♦", "♣"];
@@ -258,12 +405,26 @@
         const gameLogEl = document.getElementById("gameLog");
         const newRoundBtn = document.getElementById("newRoundBtn");
         const hitBtn = document.getElementById("hitBtn");
+        const doubleBtn = document.getElementById("doubleBtn");
         const standBtn = document.getElementById("standBtn");
+        const resetBtn = document.getElementById("resetBtn");
+        const moneyAmountEl = document.getElementById("moneyAmount");
+        const winRateEl = document.getElementById("winRate");
+        const winCountEl = document.getElementById("winCount");
+        const bettingSectionEl = document.getElementById("bettingSection");
+        const currentBetEl = document.getElementById("currentBet");
+        const betBtns = document.querySelectorAll(".bet-btn");
 
         // Event listeners
         newRoundBtn.addEventListener("click", startNewRound);
         hitBtn.addEventListener("click", playerHit);
+        doubleBtn.addEventListener("click", playerDouble);
         standBtn.addEventListener("click", playerStand);
+        resetBtn.addEventListener("click", resetGame);
+        
+        betBtns.forEach(btn => {
+            btn.addEventListener("click", () => placeBet(parseInt(btn.dataset.amount)));
+        });
 
         // Create a standard 52-card deck
         function createDeck() {
@@ -332,18 +493,49 @@
 
         // Start a new round
         function startNewRound() {
-            // Reset state
-            deck = createDeck();
-            shuffle(deck);
+            // Check if player has money
+            if (money <= 0) {
+                log("資金不足！請重置遊戲。");
+                return;
+            }
+            
+            // Reset round state
             playerHand = [];
             dealerHand = [];
-            phase = "INIT";
+            currentBet = 0;
+            isDoubleDown = false;
+            phase = "BETTING";
             resultEl.innerHTML = "";
             resultEl.className = "result";
 
+            // Clear game log as per spec
+            gameLogEl.innerHTML = "";
+            
             log("──────────────────────────");
-            log("新回合開始");
+            log("新回合開始 - 請選擇下注金額");
+            
+            render();
+        }
 
+        // Place a bet
+        function placeBet(amount) {
+            if (phase !== "BETTING") return;
+            if (amount > money) {
+                log(`資金不足！目前資金：${money} 元`);
+                return;
+            }
+            
+            currentBet = amount;
+            money -= amount;
+            updateStats(); // Update money display
+            
+            log(`下注 ${amount} 元`);
+            currentBetEl.textContent = `已下注：${currentBet} 元`;
+            
+            // Start dealing
+            deck = createDeck();
+            shuffle(deck);
+            
             // Deal initial cards
             playerHand.push(drawCard());
             dealerHand.push(drawCard());
@@ -398,6 +590,48 @@
             dealerPlay();
         }
 
+        // Player doubles down
+        function playerDouble() {
+            if (phase !== "PLAYER_TURN") return;
+            if (playerHand.length !== 2) {
+                log("加倍只能在拿到兩張牌時使用");
+                return;
+            }
+            if (currentBet > money) {
+                log("資金不足，無法加倍");
+                return;
+            }
+            
+            // Double the bet
+            money -= currentBet;
+            currentBet *= 2;
+            isDoubleDown = true;
+            updateStats(); // Update money display
+            
+            log(`加倍下注！總下注：${currentBet} 元`);
+            
+            // Draw one card
+            const card = drawCard();
+            playerHand.push(card);
+            log(`玩家要牌：${card.suit}${card.rank}`);
+            
+            render();
+            
+            const score = handScore(playerHand);
+            if (score.isBust) {
+                log(`玩家爆牌！點數：${score.best}`);
+                phase = "SETTLED";
+                render();
+                settle();
+            } else {
+                // Automatically stand after double down
+                log("加倍後自動停牌");
+                phase = "DEALER_TURN";
+                render();
+                dealerPlay();
+            }
+        }
+
         // Dealer plays according to rules
         function dealerPlay() {
             log("莊家回合開始，揭露暗牌");
@@ -441,51 +675,121 @@
 
             let outcome = "";
             let reason = "";
+            let payout = 0;
 
             // Check Blackjack first
             if (playerBJ && dealerBJ) {
                 outcome = "PUSH";
                 reason = "雙方 Blackjack";
+                payout = currentBet; // Return bet
             } else if (playerBJ) {
                 outcome = "WIN";
                 reason = "玩家 Blackjack";
+                payout = currentBet + Math.floor(currentBet * 1.5); // 1.5x payout for blackjack
             } else if (dealerBJ) {
                 outcome = "LOSE";
                 reason = "莊家 Blackjack";
+                payout = 0;
             }
             // Check bust
             else if (playerScore.isBust) {
                 outcome = "LOSE";
                 reason = "玩家爆牌";
+                payout = 0;
             } else if (dealerScore.isBust) {
                 outcome = "WIN";
                 reason = "莊家爆牌";
+                payout = currentBet * 2; // Win pays 1:1
             }
             // Compare scores
             else if (playerScore.best > dealerScore.best) {
                 outcome = "WIN";
                 reason = `玩家點數較高 (${playerScore.best} vs ${dealerScore.best})`;
+                payout = currentBet * 2; // Win pays 1:1
             } else if (playerScore.best < dealerScore.best) {
                 outcome = "LOSE";
                 reason = `莊家點數較高 (${dealerScore.best} vs ${playerScore.best})`;
+                payout = 0;
             } else {
                 outcome = "PUSH";
                 reason = `平手 (${playerScore.best} 點)`;
+                payout = currentBet; // Return bet
             }
 
-            log(`結算：${outcome} - ${reason}`);
-            displayResult(outcome, reason);
+            // Update money
+            money += payout;
+            
+            // Update statistics
+            totalGames++;
+            if (outcome === "WIN") {
+                wins++;
+            }
+            
+            // Log result
+            const moneyChange = payout - currentBet;
+            if (moneyChange > 0) {
+                log(`結算：${outcome} - ${reason} (獲得 ${payout} 元，淨賺 ${moneyChange} 元)`);
+            } else if (moneyChange < 0) {
+                log(`結算：${outcome} - ${reason} (損失 ${currentBet} 元)`);
+            } else {
+                log(`結算：${outcome} - ${reason} (退回 ${currentBet} 元)`);
+            }
+            
+            displayResult(outcome, reason, moneyChange);
+            updateStats();
         }
 
         // Display the result
-        function displayResult(outcome, reason) {
+        function displayResult(outcome, reason, moneyChange) {
             resultEl.className = "result " + outcome.toLowerCase();
             let outcomeText = "";
             if (outcome === "WIN") outcomeText = "玩家勝利！";
             else if (outcome === "LOSE") outcomeText = "莊家勝利！";
             else outcomeText = "平手！";
 
-            resultEl.innerHTML = `${outcomeText}<br><small>${reason}</small>`;
+            let moneyText = "";
+            if (moneyChange > 0) {
+                moneyText = `<br><small style="color: #4caf50;">+${moneyChange} 元</small>`;
+            } else if (moneyChange < 0) {
+                moneyText = `<br><small style="color: #f44336;">${moneyChange} 元</small>`;
+            }
+
+            resultEl.innerHTML = `${outcomeText}<br><small>${reason}</small>${moneyText}`;
+        }
+
+        // Update statistics display
+        function updateStats() {
+            moneyAmountEl.textContent = `${money} 元`;
+            const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+            winRateEl.textContent = `${winRate}%`;
+            winCountEl.textContent = `${wins} / ${totalGames}`;
+        }
+
+        // Reset game
+        function resetGame() {
+            if (!confirm("確定要重置遊戲？這將清除所有數據並重新開始。")) {
+                return;
+            }
+            
+            money = 500;
+            totalGames = 0;
+            wins = 0;
+            currentBet = 0;
+            isDoubleDown = false;
+            playerHand = [];
+            dealerHand = [];
+            phase = "INIT";
+            resultEl.innerHTML = "";
+            resultEl.className = "result";
+            gameLogEl.innerHTML = "";
+            currentBetEl.textContent = "";
+            
+            updateStats();
+            render();
+            
+            log("遊戲已重置");
+            log("歡迎來到 21 點遊戲！");
+            log("點擊「新牌局」開始新回合");
         }
 
         // Render the UI
@@ -548,14 +852,36 @@
 
         // Update button states
         function updateButtons() {
+            // Betting section visibility
+            if (phase === "BETTING") {
+                bettingSectionEl.style.display = "block";
+            } else {
+                bettingSectionEl.style.display = "none";
+            }
+            
+            // Betting buttons
+            betBtns.forEach(btn => {
+                const amount = parseInt(btn.dataset.amount);
+                btn.disabled = (phase !== "BETTING" || amount > money);
+            });
+            
+            // Game control buttons
             if (phase === "INIT" || phase === "SETTLED" || phase === "DEALER_TURN") {
                 hitBtn.disabled = true;
+                doubleBtn.disabled = true;
+                standBtn.disabled = true;
+                newRoundBtn.disabled = false;
+            } else if (phase === "BETTING") {
+                hitBtn.disabled = true;
+                doubleBtn.disabled = true;
                 standBtn.disabled = true;
                 newRoundBtn.disabled = false;
             } else if (phase === "PLAYER_TURN") {
                 hitBtn.disabled = false;
                 standBtn.disabled = false;
                 newRoundBtn.disabled = false;
+                // Double only available with 2 cards and sufficient funds
+                doubleBtn.disabled = (playerHand.length !== 2 || currentBet > money);
             }
         }
 
@@ -576,8 +902,9 @@
         }
 
         // Initialize
+        updateStats();
         log("歡迎來到 21 點遊戲！");
-        log("點擊「New Round」開始新回合");
+        log("點擊「新牌局」開始新回合");
         updateButtons();
     </script>
 </body>

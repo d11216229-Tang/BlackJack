@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>21點（簡化版）</title>
+    <title>十點半</title>
     <style>
         * {
             margin: 0;
@@ -307,7 +307,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>21點（簡化版）</h1>
+        <h1>十點半</h1>
         
         <!-- Money and Statistics Section -->
         <div class="stats-area">
@@ -455,40 +455,32 @@
             return deck.pop();
         }
 
-        // Calculate hand score
+        // Calculate hand score for 十點半
         function handScore(hand) {
             let sum = 0;
-            let aces = 0;
 
             for (let card of hand) {
                 if (card.rank === "A") {
-                    aces++;
                     sum += 1;
                 } else if (["J", "Q", "K"].includes(card.rank)) {
-                    sum += 10;
+                    sum += 0.5;
                 } else {
                     sum += parseInt(card.rank);
                 }
             }
 
-            // Try to use one Ace as 11 (only one Ace can be 11 since two would be 22+)
-            let best = sum;
-            let isSoft = false;
-            if (aces > 0 && sum + 10 <= 21) {
-                best = sum + 10;
-                isSoft = true;
-            }
-
-            const isBust = best > 21;
+            const best = sum;
+            const isSoft = false; // No soft/hard in 十點半
+            const isBust = sum > 10.5;
 
             return { best, isSoft, isBust };
         }
 
-        // Check if hand is a Blackjack (natural 21)
-        function isBlackjack(hand) {
+        // Check if hand is a perfect 10.5 (special but not Blackjack-style bonus)
+        function isPerfectTenHalf(hand) {
             if (hand.length !== 2) return false;
             const score = handScore(hand);
-            return score.best === 21;
+            return score.best === 10.5;
         }
 
         // Start a new round
@@ -547,18 +539,7 @@
             phase = "PLAYER_TURN";
             render();
 
-            // Check for Blackjack
-            const playerBJ = isBlackjack(playerHand);
-            const dealerBJ = isBlackjack(dealerHand);
-
-            if (playerBJ || dealerBJ) {
-                log("檢查 Blackjack...");
-                if (playerBJ) log("玩家獲得 Blackjack！");
-                if (dealerBJ) log("莊家獲得 Blackjack！");
-                phase = "SETTLED";
-                render();
-                settle();
-            }
+            // No immediate perfect 10.5 check - player can still choose to hit or stand
         }
 
         // Player hits
@@ -640,10 +621,10 @@
             const dealerScore = handScore(dealerHand);
             log(`莊家點數：${dealerScore.best}`);
 
-            // Dealer draws until >= 17 (S17 rule)
+            // Dealer draws until >= 8 (十點半 rule - dealer more conservative)
             while (true) {
                 const score = handScore(dealerHand);
-                if (score.best >= 17) {
+                if (score.best >= 8) {
                     log(`莊家停牌於 ${score.best} 點`);
                     break;
                 }
@@ -670,29 +651,13 @@
         function settle() {
             const playerScore = handScore(playerHand);
             const dealerScore = handScore(dealerHand);
-            const playerBJ = isBlackjack(playerHand);
-            const dealerBJ = isBlackjack(dealerHand);
 
             let outcome = "";
             let reason = "";
             let payout = 0;
 
-            // Check Blackjack first
-            if (playerBJ && dealerBJ) {
-                outcome = "PUSH";
-                reason = "雙方 Blackjack";
-                payout = currentBet; // Return bet
-            } else if (playerBJ) {
-                outcome = "WIN";
-                reason = "玩家 Blackjack";
-                payout = currentBet + Math.floor(currentBet * 1.5); // 1.5x payout for blackjack
-            } else if (dealerBJ) {
-                outcome = "LOSE";
-                reason = "莊家 Blackjack";
-                payout = 0;
-            }
-            // Check bust
-            else if (playerScore.isBust) {
+            // Check bust first
+            if (playerScore.isBust) {
                 outcome = "LOSE";
                 reason = "玩家爆牌";
                 payout = 0;
@@ -788,7 +753,7 @@
             render();
             
             log("遊戲已重置");
-            log("歡迎來到 21 點遊戲！");
+            log("歡迎來到十點半遊戲！");
             log("點擊「新牌局」開始新回合");
         }
 
@@ -825,7 +790,7 @@
             // Player score
             if (playerHand.length > 0) {
                 const score = handScore(playerHand);
-                playerScoreEl.textContent = `點數: ${score.best}${score.isSoft ? " (Soft)" : ""}${score.isBust ? " - 爆牌！" : ""}`;
+                playerScoreEl.textContent = `點數: ${score.best}${score.isBust ? " - 爆牌！" : ""}`;
             } else {
                 playerScoreEl.textContent = "點數: -";
             }
@@ -843,7 +808,7 @@
                     }
                 } else {
                     const score = handScore(dealerHand);
-                    dealerScoreEl.textContent = `點數: ${score.best}${score.isSoft ? " (Soft)" : ""}${score.isBust ? " - 爆牌！" : ""}`;
+                    dealerScoreEl.textContent = `點數: ${score.best}${score.isBust ? " - 爆牌！" : ""}`;
                 }
             } else {
                 dealerScoreEl.textContent = "點數: -";
@@ -903,7 +868,7 @@
 
         // Initialize
         updateStats();
-        log("歡迎來到 21 點遊戲！");
+        log("歡迎來到十點半遊戲！");
         log("點擊「新牌局」開始新回合");
         updateButtons();
     </script>

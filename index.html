@@ -310,7 +310,7 @@
                 }
             }
 
-            // Try to use one Ace as 11
+            // Try to use one Ace as 11 (only one Ace can be 11 since two would be 22+)
             let best = sum;
             let isSoft = false;
             if (aces > 0 && sum + 10 <= 21) {

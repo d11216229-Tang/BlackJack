@@ -76,6 +76,24 @@
             border-radius: 10px;
         }
 
+        .betting-section-persistent {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        .game-controls-area {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
         .betting-title {
             font-size: 1.2em;
             margin-bottom: 15px;
@@ -328,19 +346,6 @@
         </div>
 
         <div class="game-area">
-            <!-- Betting Section -->
-            <div id="bettingSection" class="betting-section">
-                <div class="betting-title">選擇下注金額</div>
-                <div class="betting-buttons">
-                    <button class="bet-btn" data-amount="50">50 元</button>
-                    <button class="bet-btn" data-amount="100">100 元</button>
-                    <button class="bet-btn" data-amount="500">500 元</button>
-                    <button class="bet-btn" data-amount="1000">1000 元</button>
-                    <button class="bet-btn" data-amount="5000">5000 元</button>
-                </div>
-                <div id="currentBet" class="current-bet"></div>
-            </div>
-
             <!-- Dealer Section -->
             <div class="hand-section">
                 <div class="hand-title">莊家 (Dealer)</div>
@@ -357,8 +362,23 @@
 
             <!-- Result Display -->
             <div id="result"></div>
+        </div>
 
-            <!-- Controls -->
+        <!-- Betting Section (Always Visible) -->
+        <div id="bettingSection" class="betting-section-persistent">
+            <div class="betting-title">下注金額</div>
+            <div class="betting-buttons">
+                <button class="bet-btn" data-amount="50">50 元</button>
+                <button class="bet-btn" data-amount="100">100 元</button>
+                <button class="bet-btn" data-amount="500">500 元</button>
+                <button class="bet-btn" data-amount="1000">1000 元</button>
+                <button class="bet-btn" data-amount="5000">5000 元</button>
+            </div>
+            <div id="currentBet" class="current-bet"></div>
+        </div>
+
+        <!-- Game Controls -->
+        <div class="game-controls-area">
             <div class="controls">
                 <button id="newRoundBtn">新牌局</button>
                 <button id="hitBtn" disabled>要牌</button>
@@ -380,12 +400,13 @@
         let deck = [];
         let playerHand = [];
         let dealerHand = [];
-        let phase = "INIT"; // "INIT" | "BETTING" | "PLAYER_TURN" | "DEALER_TURN" | "SETTLED"
+        let phase = "INIT"; // "INIT" | "PLAYER_TURN" | "DEALER_TURN" | "SETTLED"
         let dealerHoleCardIndex = 1; // Index of the hole card
         
         // Money and betting
         let money = 500;
         let currentBet = 0;
+        let selectedBetAmount = 100; // Default selected bet amount
         let isDoubleDown = false;
         
         // Statistics
@@ -423,7 +444,7 @@
         resetBtn.addEventListener("click", resetGame);
         
         betBtns.forEach(btn => {
-            btn.addEventListener("click", () => placeBet(parseInt(btn.dataset.amount)));
+            btn.addEventListener("click", () => selectBetAmount(parseInt(btn.dataset.amount)));
         });
 
         // Create a standard 52-card deck
@@ -483,6 +504,23 @@
             return score.best === 10.5;
         }
 
+        // Select bet amount (can be done anytime)
+        function selectBetAmount(amount) {
+            selectedBetAmount = amount;
+            
+            // Update visual selection
+            betBtns.forEach(btn => {
+                if (parseInt(btn.dataset.amount) === amount) {
+                    btn.classList.add('selected');
+                } else {
+                    btn.classList.remove('selected');
+                }
+            });
+            
+            currentBetEl.textContent = `已選擇：${selectedBetAmount} 元`;
+            log(`選擇下注金額：${selectedBetAmount} 元`);
+        }
+
         // Start a new round
         function startNewRound() {
             // Check if player has money
@@ -491,12 +529,16 @@
                 return;
             }
             
+            // Check if selected bet is affordable
+            if (selectedBetAmount > money) {
+                log(`資金不足！目前資金：${money} 元，請選擇較小的下注金額。`);
+                return;
+            }
+            
             // Reset round state
             playerHand = [];
             dealerHand = [];
-            currentBet = 0;
             isDoubleDown = false;
-            phase = "BETTING";
             resultEl.innerHTML = "";
             resultEl.className = "result";
 
@@ -504,25 +546,13 @@
             gameLogEl.innerHTML = "";
             
             log("──────────────────────────");
-            log("新回合開始 - 請選擇下注金額");
+            log("新回合開始");
             
-            render();
-        }
-
-        // Place a bet
-        function placeBet(amount) {
-            if (phase !== "BETTING") return;
-            if (amount > money) {
-                log(`資金不足！目前資金：${money} 元`);
-                return;
-            }
-            
-            currentBet = amount;
-            money -= amount;
-            updateStats(); // Update money display
-            
-            log(`下注 ${amount} 元`);
-            currentBetEl.textContent = `已下注：${currentBet} 元`;
+            // Place the bet
+            currentBet = selectedBetAmount;
+            money -= currentBet;
+            updateStats();
+            log(`下注 ${currentBet} 元`);
             
             // Start dealing
             deck = createDeck();
@@ -702,6 +732,7 @@
             
             displayResult(outcome, reason, moneyChange);
             updateStats();
+            updateButtons(); // Update button states after money changes
         }
 
         // Display the result
@@ -740,6 +771,7 @@
             totalGames = 0;
             wins = 0;
             currentBet = 0;
+            selectedBetAmount = 100;
             isDoubleDown = false;
             playerHand = [];
             dealerHand = [];
@@ -747,14 +779,17 @@
             resultEl.innerHTML = "";
             resultEl.className = "result";
             gameLogEl.innerHTML = "";
-            currentBetEl.textContent = "";
+            
+            // Reset bet selection display
+            betBtns.forEach(btn => btn.classList.remove('selected'));
+            selectBetAmount(100); // Set default to 100
             
             updateStats();
             render();
             
             log("遊戲已重置");
             log("歡迎來到十點半遊戲！");
-            log("點擊「新牌局」開始新回合");
+            log("選擇下注金額後，點擊「新牌局」開始新回合");
         }
 
         // Render the UI
@@ -817,26 +852,14 @@
 
         // Update button states
         function updateButtons() {
-            // Betting section visibility
-            if (phase === "BETTING") {
-                bettingSectionEl.style.display = "block";
-            } else {
-                bettingSectionEl.style.display = "none";
-            }
-            
-            // Betting buttons
+            // Betting buttons - can always select, but disable if not enough money
             betBtns.forEach(btn => {
                 const amount = parseInt(btn.dataset.amount);
-                btn.disabled = (phase !== "BETTING" || amount > money);
+                btn.disabled = (amount > money);
             });
             
             // Game control buttons
             if (phase === "INIT" || phase === "SETTLED" || phase === "DEALER_TURN") {
-                hitBtn.disabled = true;
-                doubleBtn.disabled = true;
-                standBtn.disabled = true;
-                newRoundBtn.disabled = false;
-            } else if (phase === "BETTING") {
                 hitBtn.disabled = true;
                 doubleBtn.disabled = true;
                 standBtn.disabled = true;
@@ -868,8 +891,9 @@
 
         // Initialize
         updateStats();
+        selectBetAmount(100); // Set default bet amount
         log("歡迎來到十點半遊戲！");
-        log("點擊「新牌局」開始新回合");
+        log("選擇下注金額後，點擊「新牌局」開始新回合");
         updateButtons();
     </script>
 </body>
